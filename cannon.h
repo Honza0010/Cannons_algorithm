@@ -9,42 +9,41 @@
 #include <utility>
 
 
-//Creation of matrix which is contiguous in memory
+//Creation of matrix which is contiguous in memory  /   vytvoøení 2D matice, která má uložené elementy v pamìti za sebou
 template <typename T>
 T** createMatrix(int rows, int cols, const T& val = T())
 {
     if (rows == 0 || cols == 0)
         throw std::invalid_argument("number of rows is 0");
 
-    T** ptr = nullptr;
+    T** rowPtrs = nullptr;
     T* pool = nullptr;
     try
     {
-        ptr = new T * [rows];  // allocate pointers (can throw here)
-        pool = new T[rows * cols];  // allocate pool (can throw here)
-        T* startpool = pool;  // Remember the start of the pool
+        rowPtrs = new T * [rows];  //Allocation of rows (pointers)  /   Ukazatele na øádky
+        pool = new T[rows * cols];  // allocation of columns (one array and row pointers will be set up uniformly in it)    /   vytvoøení dat v jednom poli, kdy ukazatele na øádky budou rozdìleny podle velikosti sloupce
+        T* startpool = pool;  //Start of the pool   /   ukazatel na zaèátek poolu
 
-        // now point the row pointers to the appropriate positions in
-        // the memory pool
+        //the row pointers are set up to point to the appropriate positions in the memory pool  /   øádkové ukazatele jsou nastaveny tak, aby ukazovaly na správné místo v pamìti
         for (int i = 0; i < rows; ++i, pool += cols)
-            ptr[i] = pool;
+            rowPtrs[i] = pool;
 
-        // Initialize pool
+        // Initialize pool  /   zaplnìní pole hodnotami
         std::fill(startpool, startpool + rows * cols, val);
-        return ptr;
+        return rowPtrs;
     }
     catch (std::bad_alloc& ex)
     {
-        delete[] ptr; // either this is nullptr or it was allocated
+        delete[] rowPtrs; 
         throw ex;  // memory allocation error
     }
 }
 
 template <typename T>
-void deleteMatrix(T** arr)
+void deleteMatrix(T** matrix)
 {
-    delete[] arr[0];  // remove the pool
-    delete[] arr;     // remove the pointers
+    delete[] matrix[0];  // remove the pool    /   smazání dat
+    delete[] matrix;     // remove the pointers    /   smazání øádkových ukazatelù
 }
 
 
@@ -55,7 +54,8 @@ void printMatrix(T** A, int rows, int cols)
     {
         for (int j = 0; j < cols; j++)
         {
-            std::cout << std::setw(4) << A[i][j] << " ";
+            //std::cout << std::setw(5) << A[i][j] << " ";
+            std::cout << A[i][j] << "\t";
         }
         std::cout << std::endl;
     }
