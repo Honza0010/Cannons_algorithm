@@ -8,24 +8,41 @@
 #include "ArrayMatrix.h"
 
 
-int main(int argc, char* argv[])
+void testSequenceMultiplication(int matrixSize, double& seqentialTime)
 {
-    ArrayMatrix<int> A_(8), B_(8), C_(8);
-
-    for (int i = 0; i < 8; i++)
+    ArrayMatrix<int> A_(matrixSize), B_(matrixSize), C_(matrixSize);
+    TimerRT timer;
+   
+    for (int i = 0; i < matrixSize; i++)
     {
-        for (int j = 0; j < 8; j++)
+        for (int j = 0; j < matrixSize; j++)
         {
-            A_.setElement(i, j, i * 8 + j);
-            B_.setElement(i, j, i * 8 + j);
+            A_.setElement(i, j, i * matrixSize + j);
+            B_.setElement(i, j, i * matrixSize + j);
         }
     }
+    timer.reset();
+    timer.start();
     C_.multiplyMatrices(A_, B_);
+    timer.stop();
 
-    std::cout << "C_:" << std::endl;
-    std::cout << C_ << std::endl;
+    seqentialTime = timer.getTime();
+    std::cout << "Seqential time: " << seqentialTime << std::endl;
+    
+    if (matrixSize <= 16)
+    {
+        std::cout << "Seqential multiplication result: " << std::endl;
+        std::cout << C_ << std::endl;
+    }
+}
 
-    int rows = 8, cols = 8;     //Rozměry matice
+
+int main(int argc, char* argv[])
+{
+    double parallelTime, seqentialTime;
+    TimerRT timer;
+    int rows = 256*8;
+    int cols = rows;     //Rozměry matice
 
     int rank, P;                //Cislo procesu / pocet procesu
 
@@ -41,6 +58,7 @@ int main(int argc, char* argv[])
     int** A = nullptr, ** B = nullptr, ** C = nullptr;
     int** subA = nullptr, ** subB = nullptr, ** subC = nullptr;
 
+   
     MPI_Init(&argc, &argv);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -84,16 +102,11 @@ int main(int argc, char* argv[])
                 for (int j = 0; j < cols; j++)
                 {
                     A[i][j] = i * rows + j;
-                }
-            }
-            for (int i = 0; i < rows; i++)
-            {
-                for (int j = 0; j < cols; j++)
-                {
                     B[i][j] = i * rows + j;
                 }
             }
-            printMatrix(A, rows, cols);
+
+            //printMatrix(A, rows, cols);
         }
         catch (std::exception& e)
         {
@@ -106,7 +119,8 @@ int main(int argc, char* argv[])
         commonData[2] = procDim;
         commonData[3] = blockSize;
     }
-
+    timer.reset();
+    timer.start();
     MPI_Bcast(&commonData, 4, MPI_INT, 0, MPI_COMM_WORLD);  //Master process B_CAST rows,cols,procDim,blockSize     /   hlavní proces rozešle tato data do všech ostatních procesů
     rows = commonData[0];
     cols = commonData[1];
@@ -167,10 +181,14 @@ int main(int argc, char* argv[])
     MPI_Type_commit(&submat);   //We have to commit the MPI_Datatype to make it available for all processes     /   Musíme daný datový typ poslat všem procesům
 
 
-
     MPI_Scatterv(rank == 0 ? &(A[0][0]) : nullptr, sendcounts, displs, submat, & (subA[0][0]), blockSize* blockSize, MPI_INT, 0, MPI_COMM_WORLD);   //Sending submatrices into processes    /   rozdělování bloků matice do procesů
     MPI_Scatterv(rank == 0 ? &(B[0][0]) : nullptr, sendcounts, displs, submat, &(subB[0][0]), blockSize* blockSize, MPI_INT, 0, MPI_COMM_WORLD);
     
+   /* if (rank == 3)
+    {
+        std::cout << "Process " << rank << " received localA" << std::endl;
+        printMatrix(subA, blockSize, blockSize);
+    }*/
     
     //Initial shifting allong x by i left    /   Počáteční rozmístění submatic do procesů
     for (int i = 0; i < coords[0]; i++)
@@ -210,17 +228,24 @@ int main(int argc, char* argv[])
     MPI_Gatherv(&(subC[0][0]), rows* cols / P, MPI_INT, rank == 0 ? &(C[0][0]) : nullptr, sendcounts, displs, submat, 0, MPI_COMM_WORLD);
 
 
+    timer.stop();
     if (rank == 0)
     {
-        std::cout << "Final result: " << std::endl;
+        parallelTime = timer.getTime();
+        std::cout << "Number of processes: " << P << " time: " << parallelTime << std::endl;   
+    }
+
+    if (rank == 0 && rows <= 16)
+    {
+        std::cout << "Parallel multiplication result: " << std::endl;
         printMatrix(C, rows, cols);
     }
 
- /*   if (rank == 1)
+    if (rank == 0)
     {
-        std::cout << "Process " << rank << " received localA" << std::endl;
-        printMatrix(subA, blockSize, blockSize);
-    }*/
+        testSequenceMultiplication(rows, seqentialTime);
+        std::cout << "Seqential time / parallel time = " << seqentialTime << " / " << parallelTime << " = " << seqentialTime / parallelTime << std::endl;
+    }
 
     deleteMatrix(subA);
     deleteMatrix(subB);
@@ -232,8 +257,11 @@ int main(int argc, char* argv[])
         deleteMatrix(C);
     }
 
+    delete[] sendcounts;
+    delete[] displs;
+   
     MPI_Finalize();
-
+   
     return 0;
 }
 

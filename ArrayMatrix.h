@@ -171,6 +171,7 @@ public:
         }
     }
 
+
     ~ArrayMatrix()
     {
         delete[] this->matrix;
