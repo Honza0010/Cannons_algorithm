@@ -98,7 +98,17 @@ void multiplyMatrices(T** A, T** B, int rows, int cols, T** res)
 	}
 }
 
-
+template<typename T>
+void copyMatrix(T** A, T** B, int rows, int cols)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            A[i][j] = B[i][j];
+        }
+    }
+}
 
 
 #endif // !__CANNON__
