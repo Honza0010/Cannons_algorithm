@@ -1,3 +1,4 @@
+Ôªø
 #pragma once
 #ifndef __CANNON__
 #define __CANNON__
@@ -9,7 +10,7 @@
 #include <utility>
 
 
-//Creation of matrix which is contiguous in memory  /   vytvo¯enÌ 2D matice, kter· m· uloûenÈ elementy v pamÏti za sebou
+//Creation of matrix which is contiguous in memory  /   vytvo√∏en√≠ 2D matice, kter√° m√° ulo≈æen√© elementy v pam√¨ti za sebou
 template <typename T>
 T** createMatrix(int rows, int cols, const T& val = T())
 {
@@ -20,21 +21,21 @@ T** createMatrix(int rows, int cols, const T& val = T())
     T* pool = nullptr;
     try
     {
-        rowPtrs = new T * [rows];  //Allocation of rows (pointers)  /   Ukazatele na ¯·dky
-        pool = new T[rows * cols];  // allocation of columns (one array and row pointers will be set up uniformly in it)    /   vytvo¯enÌ dat v jednom poli, kdy ukazatele na ¯·dky budou rozdÏleny podle velikosti sloupce
-        T* startpool = pool;  //Start of the pool   /   ukazatel na zaË·tek poolu
+        rowPtrs = new T * [rows];  //Allocation of rows (pointers)  /   Ukazatele na ≈ô√°dky
+        pool = new T[rows * cols];  // allocation of columns (one array and row pointers will be set up uniformly in it)    /   vytvo√∏en√≠ dat v jednom poli, kdy ukazatele na √∏√°dky budou rozd√¨leny podle velikosti sloupce
+        T* startpool = pool;  //Start of the pool   /   ukazatel na zaƒç√°tek poolu
 
-        //the row pointers are set up to point to the appropriate positions in the memory pool  /   ¯·dkovÈ ukazatele jsou nastaveny tak, aby ukazovaly na spr·vnÈ mÌsto v pamÏti
+        //the row pointers are set up to point to the appropriate positions in the memory pool  /   √∏√°dkov√© ukazatele jsou nastaveny tak, aby ukazovaly na spr√°vn√© m√≠sto v pam√¨ti
         for (int i = 0; i < rows; ++i, pool += cols)
             rowPtrs[i] = pool;
 
-        // Initialize pool  /   zaplnÏnÌ pole hodnotami
+        // Initialize pool  /   zaplnƒõn√≠ pole hodnotami
         std::fill(startpool, startpool + rows * cols, val);
         return rowPtrs;
     }
     catch (std::bad_alloc& ex)
     {
-        delete[] rowPtrs; 
+        delete[] rowPtrs;
         throw ex;  // memory allocation error
     }
 }
@@ -42,8 +43,8 @@ T** createMatrix(int rows, int cols, const T& val = T())
 template <typename T>
 void deleteMatrix(T** matrix)
 {
-    delete[] matrix[0];  // remove the pool    /   smaz·nÌ dat
-    delete[] matrix;     // remove the pointers    /   smaz·nÌ ¯·dkov˝ch ukazatel˘
+    delete[] matrix[0];  // remove the pool    /   smaz√°n√≠ dat
+    delete[] matrix;     // remove the pointers    /   smaz√°n√≠ √∏√°dkov√Ωch ukazatel√π
 }
 
 
@@ -84,18 +85,18 @@ std::enable_if_t<has_add_assign<T>::value, void> addMatrix(T** src, int rows, in
 template<typename T>
 void multiplyMatrices(T** A, T** B, int rows, int cols, T** res)
 {
-	for (int i = 0; i < rows; i++)
-	{
-		for (int j = 0; j < cols; j++)
-		{
-			int val = 0;
-			for (int k = 0; k < rows; k++)
-			{
-				val += A[i][k] * B[k][j];
-			}
-			res[i][j] = val;
-		}
-	}
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            int val = 0;
+            for (int k = 0; k < rows; k++)
+            {
+                val += A[i][k] * B[k][j];
+            }
+            res[i][j] = val;
+        }
+    }
 }
 
 template<typename T>
@@ -106,6 +107,89 @@ void copyMatrix(T** A, T** B, int rows, int cols)
         for (int j = 0; j < cols; j++)
         {
             A[i][j] = B[i][j];
+        }
+    }
+}
+
+
+
+template<typename T, int blockSize = 16>
+void multiplyMatricesBlockwise(T** A, T** B, int rows, int cols, T** res)
+{
+    if (rows % blockSize != 0 || cols % blockSize != 0)
+    {
+        throw std::out_of_range("The matrix cannot be divided into submatrices of size (blockSize x blockSize)");
+    }
+
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
+            res[i][j] = 0;
+        }
+    }
+    //std::cout << blockSize << std::endl;
+    for (int i = 0; i < rows; i+=blockSize)
+    {
+        for (int j = 0; j < cols; j+=blockSize)
+        {         
+            //int val = 0;
+            for (int k = 0; k < rows; k+=blockSize)
+            {
+                for (int bi = 0; bi < blockSize; bi++)
+                {
+                    for (int bj = 0; bj < blockSize; bj++)
+                    {                        
+                        for (int bk = 0; bk < blockSize; bk++)
+                        {
+                            //val += A[i+bi][k+bk] * B[k+bk][j+bj];
+                            res[i + bi][j + bj] += A[i + bi][k + bk] * B[k + bk][j + bj];
+                        }                        
+                    }
+                }               
+            }  
+            //res[i + bi][j + bj] = val;
+        }
+    }
+}
+
+template<typename T, int blockSize = 16>
+void multiplyMatricesBlockwiseOptimalized(T** A, T** B, int rows, int cols, T** res)
+{
+    if (rows % blockSize != 0 || cols % blockSize != 0)
+    {
+        throw std::out_of_range("The matrix cannot be divided into submatrices of size (blockSize x blockSize)");
+    }
+
+    // Initialize the result matrix to zero
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
+            res[i][j] = 0;
+        }
+    }
+
+    for (int i = 0; i < rows; i += blockSize)
+    {
+        for (int j = 0; j < cols; j += blockSize)
+        {
+            for (int k = 0; k < rows; k += blockSize)
+            {
+                T* resRow = &res[i][j];
+                T* ARow = &A[i][k];
+                for (int i1 = 0; i1 < blockSize; ++i1, resRow += rows, ARow += rows)
+                {
+                    T* BRow = &B[k][j];
+                    for (int k1 = 0; k1 < blockSize; ++k1, BRow += rows)
+                    {
+                        for (int j1 = 0; j1 < blockSize; ++j1)
+                        {
+                            resRow[j1] += ARow[k1] * BRow[j1];
+                        }
+                    }
+                }
+            }
         }
     }
 }
