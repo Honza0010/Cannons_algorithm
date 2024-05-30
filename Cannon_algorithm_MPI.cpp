@@ -1,4 +1,3 @@
-﻿
 #include <iostream>
 #include <mpi.h>
 #include <vector>
@@ -13,7 +12,7 @@ void testSequenceMultiplication(int matrixSize, double& seqentialTime)
 {
     ArrayMatrix<int> A_(matrixSize), B_(matrixSize), C_(matrixSize);
     TimerRT timer;
-   
+
     for (int i = 0; i < matrixSize; i++)
     {
         for (int j = 0; j < matrixSize; j++)
@@ -24,15 +23,23 @@ void testSequenceMultiplication(int matrixSize, double& seqentialTime)
     }
     timer.reset();
     timer.start();
-    C_.multiplyMatrices(A_, B_);
+    if (matrixSize % 16 == 0)
+    {
+        C_.multiplyMatricesBlockwise3(A_, B_);
+    }
+    else
+    {
+        C_.multiplyMatrices(A_, B_);
+    }
+    //C_.multiplyMatrices(A_, B_);
     timer.stop();
 
     seqentialTime = timer.getTime();
-    std::cout << "Seqential time: " << seqentialTime << std::endl;
-    
+    std::cout << "Sequential time: " << seqentialTime << std::endl;
+
     if (matrixSize <= 16)
     {
-        std::cout << "Seqential multiplication result: " << std::endl;
+        std::cout << "Sequential multiplication result: " << std::endl;
         std::cout << C_ << std::endl;
     }
 }
@@ -42,7 +49,7 @@ int main(int argc, char* argv[])
 {
     double parallelTime, seqentialTime;
     TimerRT timer;
-    int rows = 8;
+    int rows = 256*8;
     int cols = rows;     //Rozměry matice
 
     int rank, P;                //Cislo procesu / pocet procesu
@@ -52,7 +59,7 @@ int main(int argc, char* argv[])
     const int periodic[] = { 1,1 };     //osy x a y jsou zabaleny, tedy pokud např. proces 2 je úplně nejpravější proces po ose x a proces 1 nejlevější proces po ose x, pak pravý soused procesu 2 je proces 1 a levý soused procesu 1 je proces 2
     int blockSize;              //Velikost jednoho bloku (submatice) (rows / sqrt(P))
     int procDim;               //sqrt(P), rozměry kartézského systému souřadnic pro procesy
-   
+
     std::vector<int> commonData(4, 0); // {rows, cols, blockDim, blocksize} - master process (0) přepošle všechna tato data pomocí MPI_Bcast do všech ostatních procesů
     int left_rank, right_rank, up_rank, down_rank;  //left/right/up/down sousedi současného procesu
     MPI_Comm newCommunicator;     //Komunikátor pro nový MPI grid
@@ -60,7 +67,7 @@ int main(int argc, char* argv[])
     int** A = nullptr, ** B = nullptr, ** C = nullptr;
     int** subA = nullptr, ** subB = nullptr, ** subC = nullptr;
 
-   
+
     MPI_Init(&argc, &argv);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -74,7 +81,7 @@ int main(int argc, char* argv[])
             MPI_Abort(MPI_COMM_WORLD, 2);
         }
         int sqrtP = (int)std::sqrt(P);
-        
+
         //Control if the matrices are square    /   Kontrola, zda jsou matice čtvercové
         if (rows != cols)
         {
@@ -93,7 +100,7 @@ int main(int argc, char* argv[])
         blockSize = cols / sqrtP;
 
         //Allocation of contiguous matrices /   alokace matic, které mají data uložena v paměti za sebou
-        try 
+        try
         {
             A = createMatrix<int>(rows, cols, 0);
             B = createMatrix<int>(rows, cols, 0);
@@ -164,10 +171,10 @@ int main(int argc, char* argv[])
         for (int i = 0; i < P; i++) {
             sendcounts[i] = 1;
         }
-  
+
         for (int i = 0; i < procDim; i++) {
-            for (int j = 0; j < procDim; j++) {  
-                displs[i * procDim + j] = j + i * procDim *blockSize;   //The starting position is the number of the starting element among all elements.   /   Startovní pozice je pořadí daného políčka mezi všemi políčky. Využívá se tento vzorec, protože v poli displs se startovní pozice počítá tak, kolikrát musí přeskočit blocksize daného datového typu.
+            for (int j = 0; j < procDim; j++) {
+                displs[i * procDim + j] = j + i * procDim * blockSize;   //The starting position is the number of the starting element among all elements.   /   Startovní pozice je pořadí daného políčka mezi všemi políčky. Využívá se tento vzorec, protože v poli displs se startovní pozice počítá tak, kolikrát musí přeskočit blocksize daného datového typu.
             }
         }
     }
@@ -182,16 +189,16 @@ int main(int argc, char* argv[])
     MPI_Type_commit(&submat);   //We have to commit the MPI_Datatype to make it available for all processes     /   Musíme daný datový typ poslat všem procesům
 
 
-    MPI_Scatterv(rank == 0 ? &(A[0][0]) : nullptr, sendcounts, displs, submat, & (subA[0][0]), blockSize* blockSize, MPI_INT, 0, MPI_COMM_WORLD);   //Sending submatrices into processes    /   rozdělování bloků matice do procesů
-    MPI_Scatterv(rank == 0 ? &(B[0][0]) : nullptr, sendcounts, displs, submat, &(subB[0][0]), blockSize* blockSize, MPI_INT, 0, MPI_COMM_WORLD);
-    
-   /* if (rank == 3 && blockSize <= 8)
-    {
-        std::cout << "Process " << rank << " received localA" << std::endl;
-        printMatrix(subA, blockSize, blockSize);
-    }*/
-    
-    //Initial shifting allong x by i left    /   Počáteční rozmístění submatic do procesů
+    MPI_Scatterv(rank == 0 ? &(A[0][0]) : nullptr, sendcounts, displs, submat, &(subA[0][0]), blockSize * blockSize, MPI_INT, 0, MPI_COMM_WORLD);   //Sending submatrices into processes    /   rozdělování bloků matice do procesů
+    MPI_Scatterv(rank == 0 ? &(B[0][0]) : nullptr, sendcounts, displs, submat, &(subB[0][0]), blockSize * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    /* if (rank == 3 && blockSize <= 8)
+     {
+         std::cout << "Process " << rank << " received localA" << std::endl;
+         printMatrix(subA, blockSize, blockSize);
+     }*/
+
+     //Initial shifting allong x by i left    /   Počáteční rozmístění submatic do procesů
     for (int i = 0; i < coords[0]; i++)
     {
         MPI_Sendrecv_replace(&(subA[0][0]), blockSize * blockSize, MPI_INT, left_rank, 1, right_rank, 1, newCommunicator, MPI_STATUS_IGNORE);
@@ -214,20 +221,28 @@ int main(int argc, char* argv[])
     }
 
 
-    
-   /* int** pomA = nullptr, ** pomB = nullptr;
-    pomA = createMatrix<int>(blockSize, blockSize,  0);
-    pomB = createMatrix<int>(blockSize, blockSize, 0);*/
 
-    //The algorithm has sqrt(P) steps
+    /* int** pomA = nullptr, ** pomB = nullptr;
+     pomA = createMatrix<int>(blockSize, blockSize,  0);
+     pomB = createMatrix<int>(blockSize, blockSize, 0);*/
+
+     //The algorithm has sqrt(P) steps
     for (int steps = 0; steps < procDim; steps++)
     {
-        multiplyMatrices(subA, subB, blockSize, blockSize, helpRes);
+        if (blockSize % 16 == 0)
+        {
+            multiplyMatricesBlockwiseOptimalized(subA, subB, blockSize, blockSize, helpRes);
+        }
+        else
+        {
+            multiplyMatrices(subA, subB, blockSize, blockSize, helpRes);
+        }
+        //multiplyMatricesBlockwiseOptimalized<int, 4>(subA, subB, blockSize, blockSize, helpRes);
 
         addMatrix(subC, blockSize, blockSize, helpRes);     //Adding local results to subC  /   sčítání sčítanců pro subC
 
-        MPI_Sendrecv_replace(&(subA[0][0]), blockSize* blockSize, MPI_INT, left_rank, 1, right_rank, 1, newCommunicator, MPI_STATUS_IGNORE);    //Shifting by 1 left along x axis  /   posunutí o jedna vlevo podél osy x
-        MPI_Sendrecv_replace(&(subB[0][0]), blockSize* blockSize, MPI_INT, up_rank, 1, down_rank, 1, newCommunicator, MPI_STATUS_IGNORE);       //Shifting by 1 up along y axis /   posunutí o jedna nahoru podél osy y
+        MPI_Sendrecv_replace(&(subA[0][0]), blockSize * blockSize, MPI_INT, left_rank, 1, right_rank, 1, newCommunicator, MPI_STATUS_IGNORE);    //Shifting by 1 left along x axis  /   posunutí o jedna vlevo podél osy x
+        MPI_Sendrecv_replace(&(subB[0][0]), blockSize * blockSize, MPI_INT, up_rank, 1, down_rank, 1, newCommunicator, MPI_STATUS_IGNORE);       //Shifting by 1 up along y axis /   posunutí o jedna nahoru podél osy y
         //if (coords[1] == 0)     
         //{
         //    //sendVal = rank;
@@ -258,14 +273,14 @@ int main(int argc, char* argv[])
     //deleteMatrix(pomB);
 
     //Creating final C matrix, C = AB.  /   Vytváření výsledné matice C = AB
-    MPI_Gatherv(&(subC[0][0]), rows* cols / P, MPI_INT, rank == 0 ? &(C[0][0]) : nullptr, sendcounts, displs, submat, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(&(subC[0][0]), rows * cols / P, MPI_INT, rank == 0 ? &(C[0][0]) : nullptr, sendcounts, displs, submat, 0, MPI_COMM_WORLD);
 
 
     timer.stop();
     if (rank == 0)
     {
         parallelTime = timer.getTime();
-        std::cout << "Number of processes: " << P << " time: " << parallelTime << std::endl;   
+        std::cout << "Number of processes: " << P << " time: " << parallelTime << std::endl;
     }
 
     if (rank == 0 && rows <= 16)
@@ -277,8 +292,14 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
         testSequenceMultiplication(rows, seqentialTime);
-        std::cout << "Seqential time / parallel time = " << seqentialTime << " / " << parallelTime << " = " << seqentialTime / parallelTime << std::endl;
+        std::cout << "Sequential time / parallel time = " << seqentialTime << " / " << parallelTime << " = " << seqentialTime / parallelTime << std::endl;
     }
+
+   /* if (rank == 0)
+    {
+        multiplyMatricesBlockwise<int, 2>(A, B, rows, cols, C);
+        printMatrix(C, rows, cols);
+    }*/
 
     deleteMatrix(subA);
     deleteMatrix(subB);
@@ -292,9 +313,9 @@ int main(int argc, char* argv[])
 
     delete[] sendcounts;
     delete[] displs;
-   
+
     MPI_Finalize();
-   
+
     return 0;
 }
 
