@@ -1,5 +1,3 @@
-﻿
-#pragma once
 #ifndef __CANNON__
 #define __CANNON__
 
