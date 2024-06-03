@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 {
     double parallelTime, sequentialTime;
     TimerRT timer;
-    int rows = 256*8;
+    int rows = 256*16;
     int cols = rows;     //Rozměry matice
 
     int rank, P;                //Cislo procesu / pocet procesu
@@ -98,6 +98,8 @@ int main(int argc, char* argv[])
 
         procDim = sqrtP;
         blockSize = cols / sqrtP;
+
+        std::cout << "Matrix size: " << rows << " x " << cols << std::endl;
 
         //Allocation of contiguous matrices /   alokace matic, které mají data uložena v paměti za sebou
         try
