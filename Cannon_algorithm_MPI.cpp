@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <mpi.h>
 #include <vector>
 
@@ -47,7 +47,7 @@ void testSequenceMultiplication(int matrixSize, double& seqentialTime)
 
 int main(int argc, char* argv[])
 {
-    double parallelTime, seqentialTime;
+    double parallelTime, sequentialTime;
     TimerRT timer;
     int rows = 256*8;
     int cols = rows;     //Rozměry matice
@@ -291,15 +291,17 @@ int main(int argc, char* argv[])
 
     if (rank == 0)
     {
-        testSequenceMultiplication(rows, seqentialTime);
-        std::cout << "Sequential time / parallel time = " << seqentialTime << " / " << parallelTime << " = " << seqentialTime / parallelTime << std::endl;
+        testSequenceMultiplication(rows, sequentialTime);
+        double speedUp = sequentialTime / parallelTime;
+        std::cout << "Sequential time / parallel time = " << sequentialTime << " / " << parallelTime << " = " << speedUp << std::endl;
+        std::cout << "Efficiency = " << speedUp << " / " << P << " = " << speedUp / P << std::endl;
     }
 
-   /* if (rank == 0)
-    {
-        multiplyMatricesBlockwise<int, 2>(A, B, rows, cols, C);
-        printMatrix(C, rows, cols);
-    }*/
+    /* if (rank == 0)
+     {
+         multiplyMatricesBlockwise<int, 2>(A, B, rows, cols, C);
+         printMatrix(C, rows, cols);
+     }*/
 
     deleteMatrix(subA);
     deleteMatrix(subB);
@@ -318,5 +320,4 @@ int main(int argc, char* argv[])
 
     return 0;
 }
-
 
