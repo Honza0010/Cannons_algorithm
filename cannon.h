@@ -1,3 +1,4 @@
+﻿
 #ifndef __CANNON__
 #define __CANNON__
 
@@ -6,7 +7,9 @@
 #include <iomanip>
 #include <type_traits>
 #include <utility>
-
+#include <fstream>
+#include <random>
+#include <cmath>
 
 //Creation of matrix which is contiguous in memory  /   vytvoøení 2D matice, která má uložené elementy v pamìti za sebou
 template <typename T>
@@ -127,25 +130,25 @@ void multiplyMatricesBlockwise(T** A, T** B, int rows, int cols, T** res)
         }
     }
     //std::cout << blockSize << std::endl;
-    for (int i = 0; i < rows; i+=blockSize)
+    for (int i = 0; i < rows; i += blockSize)
     {
-        for (int j = 0; j < cols; j+=blockSize)
-        {         
+        for (int j = 0; j < cols; j += blockSize)
+        {
             //int val = 0;
-            for (int k = 0; k < rows; k+=blockSize)
+            for (int k = 0; k < rows; k += blockSize)
             {
                 for (int bi = 0; bi < blockSize; bi++)
                 {
                     for (int bj = 0; bj < blockSize; bj++)
-                    {                        
+                    {
                         for (int bk = 0; bk < blockSize; bk++)
                         {
                             //val += A[i+bi][k+bk] * B[k+bk][j+bj];
                             res[i + bi][j + bj] += A[i + bi][k + bk] * B[k + bk][j + bj];
-                        }                        
+                        }
                     }
-                }               
-            }  
+                }
+            }
             //res[i + bi][j + bj] = val;
         }
     }
@@ -193,4 +196,79 @@ void multiplyMatricesBlockwiseOptimalized(T** A, T** B, int rows, int cols, T** 
 }
 
 
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+T** readMatrix(const std::string& filename, int& rows_, int& cols_)
+{
+    int rows, cols;
+
+    std::ifstream file(filename, std::ios::in);
+
+    if (!file.is_open())
+    {
+        throw std::ios_base::failure("The could not be opened");
+    }
+
+    file >> rows >> cols;
+    rows_ = rows;
+    cols_ = cols;
+    T** matrix = createMatrix(rows, cols, 0);
+
+    T val;
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            file >> val;
+            matrix[i][j] = val;
+            if ((i < rows - 1 || j < cols - 1) && file.eof())
+            {
+                throw std::out_of_range("Too few elements in the file");
+                file.close();
+            }
+            if (file.fail())
+            {
+                throw std::invalid_argument("Invalid data type");
+                file.close();
+            }
+        }
+    }
+    
+    file.close();
+
+    return matrix;
+}
+
+double roundToDecimalPlaces(double value, int decimalPlaces) {
+    double factor = std::pow(10, decimalPlaces);
+    return std::round(value * factor) / factor;
+}
+
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+void randFillMatrix(T** matrix, int rows, int cols)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    if constexpr (std::is_integral_v<T>) {
+        // Use uniform_int_distribution for integer types
+        std::uniform_int_distribution<T> dis(0, 100); // Range [0, 100]
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                matrix[i][j] = dis(gen);
+            }
+        }
+    }
+    else if constexpr (std::is_floating_point_v<T>) {
+        // Use uniform_real_distribution for floating-point types
+        std::uniform_real_distribution<T> dis(0.0, 100.0); // Range [0.0, 1.0]
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                matrix[i][j] = roundToDecimalPlaces(dis(gen), 4);
+            }
+        }
+    }
+}
+
+
 #endif // !__CANNON__
+
