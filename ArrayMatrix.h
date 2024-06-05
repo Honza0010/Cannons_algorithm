@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <random>
 
 
 template< typename Real >
@@ -20,6 +21,66 @@ public:
     {
         this->matrix = new Real[size * size];
         this->size = size;
+    }
+
+    ArrayMatrix(const std::string& filename)
+    {
+        std::ifstream file(filename, std::ios::in);
+
+        if (!file.is_open())
+        {
+            throw std::ios_base::failure("The could not be opened");
+        }
+
+        file >> this->size;
+        this->matrix = new Real[size * size];
+
+        Real val;
+        for (int i = 0; i < this->size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                file >> val;
+                this->setElement(i, j, val);
+                if ((i < size - 1 || j < size - 1) && file.eof())
+                {
+                    throw std::out_of_range("Too few elements in the file");
+                    file.close();
+                }
+                if (file.fail())
+                {
+                    throw std::invalid_argument("Invalid data type");
+                    file.close();
+                }
+            }
+        }
+
+        file.close();
+    }
+
+    void randFillMatrix()
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        if constexpr (std::is_integral_v<Real>) {
+            // Use uniform_int_distribution for integer types
+            std::uniform_int_distribution<Real> dis(0, 100); // Range [0, 100]
+            for (int i = 0; i < size; ++i) {
+                for (int j = 0; j < size; ++j) {
+                    this->setElement(i, j, dis(gen));
+                }
+            }
+        }
+        else if constexpr (std::is_floating_point_v<Real>) {
+            // Use uniform_real_distribution for floating-point types
+            std::uniform_real_distribution<Real> dis(0.0, 100.0); // Range [0.0, 1.0]
+            for (int i = 0; i < size; ++i) {
+                for (int j = 0; j < size; ++j) {
+                    this->setElement(i, j, roundToDecimalPlaces(dis(gen), 4));
+                }
+            }
+        }
     }
 
     void setValue(const Real& v)

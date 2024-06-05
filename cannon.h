@@ -23,10 +23,10 @@ T** createMatrix(int rows, int cols, const T& val = T())
     try
     {
         rowPtrs = new T * [rows];  //Allocation of rows (pointers)  /   Ukazatele na řádky
-        pool = new T[rows * cols];  // allocation of columns (one array and row pointers will be set up uniformly in it)    /   vytvoøení dat v jednom poli, kdy ukazatele na øádky budou rozdìleny podle velikosti sloupce
+        pool = new T[rows * cols];  // allocation of columns (one array and row pointers will be set up uniformly in it)    /   vytvoření dat v jednom poli, kdy ukazatele na řádky budou rozděleny podle velikosti sloupce
         T* startpool = pool;  //Start of the pool   /   ukazatel na začátek poolu
 
-        //the row pointers are set up to point to the appropriate positions in the memory pool  /   øádkové ukazatele jsou nastaveny tak, aby ukazovaly na správné místo v pamìti
+        //the row pointers are set up to point to the appropriate positions in the memory pool  /   řádkové ukazatele jsou nastaveny tak, aby ukazovaly na správné místo v paměti
         for (int i = 0; i < rows; ++i, pool += cols)
             rowPtrs[i] = pool;
 
@@ -45,7 +45,7 @@ template <typename T>
 void deleteMatrix(T** matrix)
 {
     delete[] matrix[0];  // remove the pool    /   smazání dat
-    delete[] matrix;     // remove the pointers    /   smazání øádkových ukazatelù
+    delete[] matrix;     // remove the pointers    /   smazání řádkových ukazatelů
 }
 
 
@@ -111,7 +111,6 @@ void copyMatrix(T** A, T** B, int rows, int cols)
         }
     }
 }
-
 
 
 template<typename T, int blockSize = 16>
@@ -197,8 +196,8 @@ void multiplyMatricesBlockwiseOptimalized(T** A, T** B, int rows, int cols, T** 
 
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-T** readMatrix(const std::string& filename, int& rows_, int& cols_)
-{
+T** readMatrix(const std::string& filename, int& rows_, int& cols_)     //Reads matrix from the file. The first row of the file has to contain two integers for number of rows and columns
+{                                                                       //Načítání matice ze souboru. První řádek musí obsahovat 2 čísla - počet řádků a sloupců
     int rows, cols;
 
     std::ifstream file(filename, std::ios::in);
@@ -238,19 +237,21 @@ T** readMatrix(const std::string& filename, int& rows_, int& cols_)
     return matrix;
 }
 
-double roundToDecimalPlaces(double value, int decimalPlaces) {
+double roundToDecimalPlaces(double value, int decimalPlaces)    //Rounds number to the number with maximum of decimalPlaces digits after decimal point
+{                                                               //Zaokrouhlí číslo, aby mělo maximálně 4 desetinná místa
     double factor = std::pow(10, decimalPlaces);
     return std::round(value * factor) / factor;
 }
 
-template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 void randFillMatrix(T** matrix, int rows, int cols)
 {
     std::random_device rd;
     std::mt19937 gen(rd());
 
     if constexpr (std::is_integral_v<T>) {
-        // Use uniform_int_distribution for integer types
+        // uniform_int_distribution for integer types   /   rovnoměrné rozdělení celých čísel
         std::uniform_int_distribution<T> dis(0, 100); // Range [0, 100]
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < cols; ++j) {
@@ -259,8 +260,8 @@ void randFillMatrix(T** matrix, int rows, int cols)
         }
     }
     else if constexpr (std::is_floating_point_v<T>) {
-        // Use uniform_real_distribution for floating-point types
-        std::uniform_real_distribution<T> dis(0.0, 100.0); // Range [0.0, 1.0]
+        // uniform_real_distribution for floating-point types   /   Rovnoměrné rozdělení reálných čísel
+        std::uniform_real_distribution<T> dis(0.0, 100.0); // Range [0.0, 100.0]
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < cols; ++j) {
                 matrix[i][j] = roundToDecimalPlaces(dis(gen), 4);
