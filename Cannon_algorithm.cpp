@@ -165,8 +165,6 @@ int main(int argc, char* argv[])
     MPI_Cart_shift(newCommunicator, 0, 1, &up_rank, &down_rank);    //Getting neighbours of current process along x axis    /   získání vertikálních sousedů
     MPI_Cart_shift(newCommunicator, 1, 1, &left_rank, &right_rank);     //Getting neighbours of current process along y axis    /   získání horizontálních sousedů
 
-    //std::cout << "Process " << rank << " Neighbours: " << left_rank << " " << up_rank << " " << right_rank << " " << down_rank << std::endl;
-
     int* sendcounts = new int[P];   //sendCounts for MPI_Scatterv function  /   v tomto případě jedno políčko obsahuje počet submatic, kolik je posláno danému procesu
     int* displs = new int[P];    //Displacements for MPI_Scatterv function   /   v tomto případě jedno políčko obsahuje startovní pozici submatice, kterou daný proces dostane
 
